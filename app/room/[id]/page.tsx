@@ -158,17 +158,19 @@ function useRoomSync(roomId: string) {
 
         ignoreLocalCountRef.current += nonEmpty.length;
 
-        Promise.all(
-          nonEmpty.map((patch) =>
-            fetch("/api/sync", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ roomId, patch }),
-            })
-          )
-        ).catch(() => {
-          ignoreLocalCountRef.current = 0;
-        });
+        (async () => {
+          try {
+            for (const patch of nonEmpty) {
+              await fetch("/api/sync", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ roomId, patch }),
+              });
+            }
+          } catch {
+            ignoreLocalCountRef.current = 0;
+          }
+        })();
       }, DEBOUNCE_MS);
     },
     [roomId]
