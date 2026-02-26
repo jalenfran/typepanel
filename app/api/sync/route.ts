@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import Pusher from "pusher";
 
+type TextPatch = {
+  start: number;
+  end: number;
+  insert: string;
+};
+
 const pusher =
   process.env.PUSHER_APP_ID &&
   process.env.PUSHER_KEY &&
@@ -25,17 +31,23 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { roomId, text } = body as { roomId?: string; text?: string };
+    const { roomId, text, patch } = body as {
+      roomId?: string;
+      text?: string;
+      patch?: TextPatch;
+    };
 
-    if (!roomId || typeof text !== "string") {
+    if (!roomId || (!patch && typeof text !== "string")) {
       return NextResponse.json(
-        { error: "roomId and text required" },
+        { error: "roomId and patch or text required" },
         { status: 400 }
       );
     }
 
     const channel = `room-${roomId}`;
-    await pusher.trigger(channel, "text-update", { text });
+    const payload = patch ? { patch } : { text };
+
+    await pusher.trigger(channel, "text-update", payload);
 
     return NextResponse.json({ ok: true });
   } catch (e) {

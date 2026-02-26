@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "gsap": "^3.14.2",
     "next": "^16.1.6",
     "pusher": "5.2.0",
     "pusher-js": "8.4.0-rc2",
