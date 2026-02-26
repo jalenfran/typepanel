@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Pusher from "pusher-js";
 import gsap from "gsap";
 
 type TextPatch = {
@@ -12,6 +11,7 @@ type TextPatch = {
 };
 
 const MAX_INSERT_CHARS = 3000;
+const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "";
 
 function computePatch(prev: string, next: string): TextPatch {
   if (prev === next) {
@@ -76,79 +76,80 @@ function splitInsertPatch(patch: TextPatch): TextPatch[] {
   return patches;
 }
 
-const PUSHER_KEY = process.env.NEXT_PUBLIC_PUSHER_KEY!;
-const PUSHER_CLUSTER = process.env.NEXT_PUBLIC_PUSHER_CLUSTER || "us2";
-const DEBOUNCE_MS = 120;
+const DEBOUNCE_MS = 80;
 
 function useRoomSync(roomId: string) {
   const [text, setText] = useState("");
   const [connected, setConnected] = useState(false);
-  const pusherRef = useRef<Pusher | null>(null);
-  const channelRef = useRef<ReturnType<Pusher["subscribe"]> | null>(null);
-  const ignoreLocalCountRef = useRef(0);
+  const socketRef = useRef<WebSocket | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevTextRef = useRef("");
+  /** Last text we've sent to the server (or received from it). Used so we send full cumulative diff, not per-keystroke. */
+  const lastSentRef = useRef("");
+  /** Latest full text from user input; debounce callback reads this to compute patch. */
+  const pendingTextRef = useRef("");
 
   useEffect(() => {
-    if (!PUSHER_KEY || !roomId) return;
+    if (!WS_URL || !roomId) return;
 
-    prevTextRef.current = "";
+    lastSentRef.current = "";
+    pendingTextRef.current = "";
 
-    const pusher = new Pusher(PUSHER_KEY, {
-      cluster: PUSHER_CLUSTER,
-      forceTLS: true,
-    });
-    pusherRef.current = pusher;
+    const socket = new WebSocket(
+      `${WS_URL}?roomId=${encodeURIComponent(roomId)}`
+    );
+    socketRef.current = socket;
 
-    const channel = pusher.subscribe(`room-${roomId}`);
-    channelRef.current = channel;
+    socket.addEventListener("open", () => setConnected(true));
+    socket.addEventListener("close", () => setConnected(false));
 
-    channel.bind(
-      "text-update",
-      (data: { text?: string; patch?: TextPatch }) => {
-        if (ignoreLocalCountRef.current > 0) {
-          ignoreLocalCountRef.current -= 1;
-          return;
-        }
+    socket.addEventListener("message", (event) => {
+      try {
+        const data: { type?: string; text?: string; patch?: TextPatch } =
+          JSON.parse(event.data as string);
 
-        if (data?.patch) {
+        if (data.type === "snapshot" && typeof data.text === "string") {
+          lastSentRef.current = data.text;
+          pendingTextRef.current = data.text;
+          setText(data.text);
+        } else if (data.type === "patch" && data.patch) {
           setText((current) => {
             const nextText = applyPatch(current, data.patch as TextPatch);
-            prevTextRef.current = nextText;
+            lastSentRef.current = nextText;
+            pendingTextRef.current = nextText;
             return nextText;
           });
-        } else if (typeof data?.text === "string") {
-          prevTextRef.current = data.text;
-          setText(data.text);
         }
+      } catch {
+        // ignore malformed messages
       }
-    );
-
-    pusher.connection.bind("connected", () => setConnected(true));
-    pusher.connection.bind("disconnected", () => setConnected(false));
+    });
 
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
-      channel.unbind_all();
-      pusher.unsubscribe(`room-${roomId}`);
-      pusher.disconnect();
-      pusherRef.current = null;
-      channelRef.current = null;
+      if (socketRef.current) {
+        socketRef.current.close();
+      }
+      socketRef.current = null;
+      setConnected(false);
     };
   }, [roomId]);
 
   const broadcast = useCallback(
     (newText: string) => {
-      if (!roomId) return;
+      if (!roomId || !socketRef.current) return;
+      const socket = socketRef.current;
+      if (socket.readyState !== WebSocket.OPEN) return;
 
       setText(newText);
-      const basePatch = computePatch(prevTextRef.current, newText);
-      const patches = splitInsertPatch(basePatch);
-      prevTextRef.current = newText;
+      pendingTextRef.current = newText;
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
+
+        const current = pendingTextRef.current;
+        const basePatch = computePatch(lastSentRef.current, current);
+        const patches = splitInsertPatch(basePatch);
 
         const nonEmpty = patches.filter(
           (p) =>
@@ -156,21 +157,16 @@ function useRoomSync(roomId: string) {
         );
         if (!nonEmpty.length) return;
 
-        ignoreLocalCountRef.current += nonEmpty.length;
-
-        (async () => {
-          try {
-            for (const patch of nonEmpty) {
-              await fetch("/api/sync", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ roomId, patch }),
-              });
-            }
-          } catch {
-            ignoreLocalCountRef.current = 0;
-          }
-        })();
+        for (const patch of nonEmpty) {
+          socket.send(
+            JSON.stringify({
+              type: "patch",
+              roomId,
+              patch,
+            })
+          );
+        }
+        lastSentRef.current = current;
       }, DEBOUNCE_MS);
     },
     [roomId]

@@ -4,20 +4,24 @@ Live shared typing — like a pastebin where everyone sees the same text in real
 
 ## Quick start
 
-1. **Get Pusher credentials** (free): [dashboard.pusher.com](https://dashboard.pusher.com) → Create app → use “Channels” (not Beams). Copy App ID, Key, Secret, Cluster.
-
-2. **Clone and install**
+1. **Clone and install**
    ```bash
    npm install
    ```
 
-3. **Environment**
+2. **Environment**
    - Copy `.env.example` to `.env.local`
-   - Fill in all values. Use the same Key and Cluster for both `PUSHER_KEY` and `NEXT_PUBLIC_PUSHER_KEY` / `NEXT_PUBLIC_PUSHER_CLUSTER`.
+   - For local dev, leave `NEXT_PUBLIC_WS_URL=ws://localhost:4000`.
 
-4. **Run**
+3. **Run the WebSocket server + app locally**
    ```bash
+   # terminal 1
+   npm run server
+   # terminal 2
    npm run dev
+   ```
+   ```bash
+   # open http://localhost:3000
    ```
    Open [http://localhost:3000](http://localhost:3000), click “Create a room”, share the URL — anyone with the link sees typing live.
 
@@ -25,14 +29,18 @@ Live shared typing — like a pastebin where everyone sees the same text in real
 
 1. Push this repo to GitHub.
 2. In [vercel.com](https://vercel.com): New Project → Import the repo.
-3. Add the same env vars in **Settings → Environment Variables**:
-   - `PUSHER_APP_ID`
-   - `PUSHER_KEY`
-   - `PUSHER_SECRET`
-   - `PUSHER_CLUSTER`
-   - `NEXT_PUBLIC_PUSHER_KEY` (same as `PUSHER_KEY`)
-   - `NEXT_PUBLIC_PUSHER_CLUSTER` (same as `PUSHER_CLUSTER`)
+3. In **Settings → Environment Variables**, set:
+   - `NEXT_PUBLIC_WS_URL` to your Railway WebSocket URL, e.g. `wss://your-railway-app.up.railway.app`
 4. Deploy. Your live pastebin is live.
+
+## Deploy the WebSocket server on Railway
+
+1. Push the same repo to GitHub (or reuse the one from above).
+2. In [railway.app](https://railway.app): New Project → Deploy from GitHub → pick this repo.
+3. For the Railway service:
+   - Build command: `npm install`
+   - Start command: `npm run server`
+4. Once deployed, copy the public URL (e.g. `wss://my-typepanel-ws.up.railway.app`) and plug it into `NEXT_PUBLIC_WS_URL` on Vercel.
 
 ## How it works
 
