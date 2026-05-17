@@ -14,6 +14,7 @@ export default function Home() {
   const buttonRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const ctx = gsap.context(() => {
       if (heroRef.current) {
         gsap.from(heroRef.current, {

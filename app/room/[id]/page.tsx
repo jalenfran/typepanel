@@ -44,6 +44,7 @@ function transformPosition(pos: number, delta: DeltaOp[]): number {
 function useRoomSync(roomId: string) {
   const [text, setTextState] = useState("");
   const [connected, setConnected] = useState(false);
+  const [peers, setPeers] = useState(0);
   const ytextRef = useRef<Y.Text | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const pendingSelectionRef = useRef<{ start: number; end: number } | null>(
@@ -63,6 +64,14 @@ function useRoomSync(roomId: string) {
     };
     provider.on("status", handleStatus);
 
+    // Make sure we appear in our own awareness map so the count includes us.
+    provider.awareness.setLocalState({});
+    const handleAwareness = () => {
+      setPeers(provider.awareness.getStates().size);
+    };
+    provider.awareness.on("change", handleAwareness);
+    handleAwareness();
+
     const handleObserve = (event: Y.YTextEvent, txn: Y.Transaction) => {
       if (!txn.local) {
         const ta = textareaRef.current;
@@ -81,11 +90,13 @@ function useRoomSync(roomId: string) {
 
     return () => {
       ytext.unobserve(handleObserve);
+      provider.awareness.off("change", handleAwareness);
       provider.off("status", handleStatus);
       provider.destroy();
       ydoc.destroy();
       ytextRef.current = null;
       setConnected(false);
+      setPeers(0);
     };
   }, [roomId]);
 
@@ -133,20 +144,37 @@ function useRoomSync(roomId: string) {
     });
   }, []);
 
-  return { text, setText, connected, textareaRef };
+  return { text, setText, connected, peers, textareaRef };
+}
+
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mq.matches);
+    const handler = () => setReduced(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return reduced;
 }
 
 export default function RoomPage() {
   const params = useParams();
   const router = useRouter();
   const roomId = typeof params.id === "string" ? params.id : "";
-  const { text, setText, connected, textareaRef } = useRoomSync(roomId);
+  const { text, setText, connected, peers, textareaRef } = useRoomSync(roomId);
   const [copied, setCopied] = useState(false);
   const copyIconRef = useRef<HTMLSpanElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
   const shareUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/room/${roomId}`
       : "";
+
+  useEffect(() => {
+    textareaRef.current?.focus();
+  }, [textareaRef]);
 
   const copyLink = useCallback(() => {
     if (!shareUrl) return;
@@ -154,7 +182,7 @@ export default function RoomPage() {
 
     setCopied(true);
 
-    if (copyIconRef.current) {
+    if (copyIconRef.current && !reducedMotion) {
       gsap.fromTo(
         copyIconRef.current,
         { y: 4, opacity: 0 },
@@ -163,7 +191,7 @@ export default function RoomPage() {
     }
 
     window.setTimeout(() => setCopied(false), 1200);
-  }, [shareUrl]);
+  }, [shareUrl, reducedMotion]);
 
   if (!roomId) {
     return (
@@ -190,6 +218,13 @@ export default function RoomPage() {
           />
           <span>← TypePanel</span>
         </a>
+
+        {connected && peers > 0 ? (
+          <span className="presence-pill" title="People in this room">
+            <span className="presence-dot" />
+            {peers} here
+          </span>
+        ) : null}
 
         <div className="room-share">
           <input
@@ -224,7 +259,9 @@ export default function RoomPage() {
       </div>
 
       <p className="room-footnote">
-        Rooms linger for 3 minutes after everyone leaves. Share the link to collaborate live.
+        <span className="room-footnote-count">{text.length.toLocaleString()} chars</span>
+        <span className="room-footnote-sep">·</span>
+        <span>Rooms linger for 3 minutes after everyone leaves</span>
       </p>
     </main>
   );

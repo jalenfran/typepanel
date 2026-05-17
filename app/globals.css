@@ -232,6 +232,8 @@ button {
 
 .room-editor-wrap {
   flex: 1;
+  display: flex;
+  min-height: 62vh;
   position: relative;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
@@ -245,17 +247,18 @@ button {
 }
 
 .room-editor {
+  flex: 1;
   width: 100%;
-  min-height: 62vh;
   padding: 1.4rem 1.5rem;
   border: none;
   background: transparent;
   color: var(--text);
   font-size: 15px;
   line-height: 1.65;
-  resize: vertical;
+  resize: none;
   outline: none;
   border-radius: inherit;
+  display: block;
 }
 .room-editor::placeholder {
   color: var(--muted);
@@ -265,6 +268,51 @@ button {
   color: var(--muted);
   font-size: 0.8rem;
   text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.room-footnote-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.room-footnote-sep {
+  opacity: 0.5;
+}
+
+.presence-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.7rem 0.3rem 0.55rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+.presence-pill .presence-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+  animation: presence-pulse 2.4s ease-in-out infinite;
+}
+@keyframes presence-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .presence-pill .presence-dot {
+    animation: none;
+  }
 }
 
 /* ---------- Fallback ---------- */
