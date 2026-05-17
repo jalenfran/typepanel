@@ -1,0 +1,22 @@
+[package]
+name = "typepanel-server"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "sync", "time", "signal", "io-util"] }
+axum = { version = "0.7", features = ["ws"] }
+yrs = "0.21"
+dashmap = "6"
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "ansi"] }
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+strip = true
+panic = "abort"

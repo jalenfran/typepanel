@@ -21,18 +21,29 @@ spec:
           image: ghcr.io/jalenfran/typepanel:latest
           imagePullPolicy: IfNotPresent
           env:
-            - name: NODE_ENV
-              value: production
             - name: PORT
               value: "3000"
+            - name: RUST_LOG
+              value: "info"
           ports:
             - containerPort: 3000
               name: http
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 1
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
           resources:
             requests:
-              cpu: "100m"
-              memory: "256Mi"
+              cpu: "50m"
+              memory: "32Mi"
             limits:
               cpu: "500m"
-              memory: "512Mi"
-
+              memory: "128Mi"

@@ -25,3 +25,6 @@ npm-debug.log*
 
 # typescript
 next-env.d.ts
+
+# rust
+server/target

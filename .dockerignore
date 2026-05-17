@@ -1,0 +1,9 @@
+**/node_modules
+**/.next
+**/target
+.git
+.env
+.env.local
+.env.*.local
+README.md
+kubernetes

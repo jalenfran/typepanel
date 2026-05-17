@@ -6,7 +6,6 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "server": "node server/index.js",
     "lint": "next lint"
   },
   "dependencies": {
@@ -14,12 +13,16 @@
     "next": "^16.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "ws": "^8.18.0"
+    "y-websocket": "^3.0.0",
+    "yjs": "^13.6.30"
   },
   "devDependencies": {
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "typescript": "^5.5.3"
+  },
+  "overrides": {
+    "postcss": "^8.5.14"
   }
 }

@@ -1,17 +1,26 @@
-FROM node:20-alpine
+# syntax=docker/dockerfile:1.7
+FROM rust:1.83-alpine AS builder
 
-WORKDIR /app
+RUN apk add --no-cache musl-dev
 
-# Install only what we need to run the WebSocket server
-COPY package*.json ./
-RUN npm ci --omit=dev
+WORKDIR /build
 
-COPY server ./server
+# Cache dependencies separately from source.
+COPY server/Cargo.toml server/Cargo.lock* ./
+RUN mkdir src && echo "fn main() {}" > src/main.rs \
+    && cargo build --release --target x86_64-unknown-linux-musl \
+    && rm -rf src target/x86_64-unknown-linux-musl/release/deps/typepanel_server*
 
-ENV NODE_ENV=production
+COPY server/src ./src
+RUN cargo build --release --target x86_64-unknown-linux-musl \
+    && cp target/x86_64-unknown-linux-musl/release/typepanel-server /typepanel-server
+
+FROM scratch
+
+COPY --from=builder /typepanel-server /typepanel-server
+
+ENV RUST_LOG=info
 ENV PORT=3000
-
 EXPOSE 3000
 
-CMD ["node", "server/index.js"]
-
+ENTRYPOINT ["/typepanel-server"]

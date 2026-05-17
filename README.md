@@ -15,32 +15,12 @@ Live shared typing — like a pastebin where everyone sees the same text in real
 
 3. **Run the WebSocket server + app locally**
    ```bash
-   # terminal 1
-   npm run server
-   # terminal 2
+   # terminal 1 — Rust relay (requires rustup)
+   cd server && cargo run
+   # terminal 2 — Next.js
    npm run dev
    ```
-   ```bash
-   # open http://localhost:3000
-   ```
-   Open [http://localhost:3000](http://localhost:3000), click “Create a room”, share the URL — anyone with the link sees typing live.
-
-## Deploy on Vercel
-
-1. Push this repo to GitHub.
-2. In [vercel.com](https://vercel.com): New Project → Import the repo.
-3. In **Settings → Environment Variables**, set:
-   - `NEXT_PUBLIC_WS_URL` to your Railway WebSocket URL, e.g. `wss://your-railway-app.up.railway.app`
-4. Deploy. Your live pastebin is live.
-
-## Deploy the WebSocket server on Railway
-
-1. Push the same repo to GitHub (or reuse the one from above).
-2. In [railway.app](https://railway.app): New Project → Deploy from GitHub → pick this repo.
-3. For the Railway service:
-   - Build command: `npm install`
-   - Start command: `npm run server`
-4. Once deployed, copy the public URL (e.g. `wss://my-typepanel-ws.up.railway.app`) and plug it into `NEXT_PUBLIC_WS_URL` on Vercel.
+   Open [http://localhost:3000](http://localhost:3000), click "Create a room", share the URL — anyone with the link sees typing live.
 
 ## Deploy on your k3s cluster
 
@@ -65,6 +45,8 @@ High-level flow:
 
 ## How it works
 
-- Each room is a URL: `/room/[id]`. Everyone in the same URL shares one live document.
-- Typing is debounced and sent over a WebSocket connection; the server applies the patch and broadcasts it to every other client in the room.
-- No database. Rooms linger for 3 minutes after the last client disconnects (so a refresh doesn't lose work), then are dropped from memory.
+- Each room is a URL: `/room/[id]`. Everyone in the same URL shares one live [Yjs](https://github.com/yjs/yjs) document.
+- The browser uses Yjs + `y-websocket`; concurrent edits merge via CRDT — no patch-clobbering between clients.
+- The server is a small Rust binary (`server/`) that speaks the y-websocket protocol, holds one `Doc` per room in memory, and broadcasts updates to peers.
+- No database. Rooms linger for 3 minutes after the last client disconnects, then are dropped from memory.
+- Per-connection caps: 1 MiB frames, 200 msg/s (burst 400), room ids `[A-Za-z0-9_-]{1,128}`, 50 clients/room, 10 000 rooms total.
