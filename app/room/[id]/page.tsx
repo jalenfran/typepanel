@@ -83,9 +83,7 @@ function useRoomSync(roomId: string) {
   const [connected, setConnected] = useState(false);
   const socketRef = useRef<WebSocket | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Last text we've sent to the server (or received from it). Used so we send full cumulative diff, not per-keystroke. */
   const lastSentRef = useRef("");
-  /** Latest full text from user input; debounce callback reads this to compute patch. */
   const pendingTextRef = useRef("");
 
   useEffect(() => {
@@ -206,21 +204,12 @@ export default function RoomPage() {
 
   if (!roomId) {
     return (
-      <main style={{ padding: "2rem", textAlign: "center" }}>
+      <main className="fallback">
         <p>Invalid room.</p>
         <button
           type="button"
           onClick={() => router.push("/")}
-          style={{
-            marginTop: "1rem",
-            padding: "0.5rem 1rem",
-            background: "var(--accent)",
-            color: "var(--bg)",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            font: "inherit",
-          }}
+          className="fallback-button"
         >
           Go home
         </button>
@@ -229,146 +218,49 @@ export default function RoomPage() {
   }
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        padding: "1.5rem",
-        maxWidth: "900px",
-        margin: "0 auto",
-      }}
-    >
-      <header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "1rem",
-          marginBottom: "1rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <a
-            href="/"
-            style={{
-              color: "var(--muted)",
-              fontSize: "0.9rem",
-              fontWeight: 500,
-            }}
-          >
-            ← TypePanel
-          </a>
+    <main className="room">
+      <header className="room-header">
+        <a href="/" className="room-brand">
           <span
-            style={{
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              background: connected ? "var(--accent)" : "var(--muted)",
-              opacity: connected ? 1 : 0.5,
-            }}
+            className={`status-dot${connected ? " is-connected" : ""}`}
             title={connected ? "Connected" : "Connecting…"}
           />
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <span>← TypePanel</span>
+        </a>
+
+        <div className="room-share">
           <input
             type="text"
             readOnly
             value={shareUrl}
-            style={{
-              fontFamily: "JetBrains Mono",
-              fontSize: "0.8rem",
-              padding: "0.5rem 0.75rem",
-              borderRadius: "6px",
-              border: "1px solid var(--border)",
-              background: "var(--surface)",
-              color: "var(--text)",
-              width: "min(420px, 100%)",
-            }}
+            className="room-share-input"
+            onFocus={(e) => e.currentTarget.select()}
           />
           <button
             type="button"
             onClick={copyLink}
-            style={{
-              padding: "0.5rem 1.5rem",
-              minWidth: "120px",
-              borderRadius: "6px",
-              border: "1px solid var(--border)",
-              background: "var(--surface)",
-              color: "var(--text)",
-              cursor: "pointer",
-              fontSize: "0.875rem",
-              font: "inherit",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "0.35rem",
-            }}
+            className={`copy-button${copied ? " is-copied" : ""}`}
           >
-            <span
-              ref={copyIconRef}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 16,
-                height: 16,
-                borderRadius: 4,
-                border: copied
-                  ? "1px solid rgba(34, 211, 199, 0.4)"
-                  : "1px solid var(--border)",
-                background: copied
-                  ? "var(--accent)"
-                  : "rgba(15, 23, 42, 0.9)",
-                color: copied ? "var(--bg)" : "var(--muted)",
-                fontSize: 10,
-                transition:
-                  "background 0.15s ease, color 0.15s ease, border-color 0.15s ease",
-              }}
-            >
-              {copied ? "✓" : ""}
+            <span ref={copyIconRef} className="copy-icon">
+              {copied ? "✓" : "⧉"}
             </span>
             <span>{copied ? "Copied" : "Copy link"}</span>
           </button>
         </div>
       </header>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Start typing… everyone in this room sees it live."
-        style={{
-          flex: 1,
-          minHeight: "60vh",
-          width: "100%",
-          padding: "1.25rem",
-          borderRadius: "12px",
-          border: "1px solid var(--border)",
-          background: "var(--surface)",
-          color: "var(--text)",
-          fontSize: "15px",
-          lineHeight: 1.6,
-          resize: "vertical",
-          outline: "none",
-        }}
-        onFocus={(e) => {
-          e.currentTarget.style.boxShadow = "0 0 0 2px var(--accent-dim)";
-        }}
-        onBlur={(e) => {
-          e.currentTarget.style.boxShadow = "none";
-        }}
-      />
+      <div className="room-editor-wrap">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Start typing… everyone in this room sees it live."
+          className="room-editor"
+          spellCheck={false}
+        />
+      </div>
 
-      <p
-        style={{
-          color: "var(--muted)",
-          fontSize: "0.8rem",
-          marginTop: "0.75rem",
-        }}
-      >
-        No persistence — when everyone leaves, the text is gone. Share the link
-        to collaborate live.
+      <p className="room-footnote">
+        Rooms linger for 3 minutes after everyone leaves. Share the link to collaborate live.
       </p>
     </main>
   );

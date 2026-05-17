@@ -3,6 +3,10 @@ import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
+// Keep empty rooms alive briefly so a quick refresh or reconnect doesn't
+// wipe the buffer out from under the user.
+const EMPTY_ROOM_TTL_MS = 3 * 60 * 1000;
+
 /**
  * Very small in-memory room store.
  * No persistence: if the server restarts, everything is gone.
@@ -35,9 +39,13 @@ wss.on("connection", (ws, req) => {
   const roomId = url.searchParams.get("roomId") || "default";
 
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { text: "", clients: new Set() });
+    rooms.set(roomId, { text: "", clients: new Set(), reapTimer: null });
   }
   const room = rooms.get(roomId);
+  if (room.reapTimer) {
+    clearTimeout(room.reapTimer);
+    room.reapTimer = null;
+  }
   room.clients.add(ws);
 
   console.log(
@@ -90,8 +98,16 @@ wss.on("connection", (ws, req) => {
       `[ws] client disconnected room=${roomId} count=${room.clients.size}`
     );
     if (room.clients.size === 0) {
-      rooms.delete(roomId);
-      console.log(`[ws] room empty, deleting room=${roomId}`);
+      if (room.reapTimer) clearTimeout(room.reapTimer);
+      room.reapTimer = setTimeout(() => {
+        const current = rooms.get(roomId);
+        if (current && current.clients.size === 0) {
+          rooms.delete(roomId);
+          console.log(
+            `[ws] room empty for ${EMPTY_ROOM_TTL_MS / 1000}s, deleting room=${roomId}`
+          );
+        }
+      }, EMPTY_ROOM_TTL_MS);
     }
   });
 

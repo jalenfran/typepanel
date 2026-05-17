@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: typepanel
+  namespace: typepanel
+spec:
+  type: NodePort
+  selector:
+    app: typepanel
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
+      nodePort: 30110
+      protocol: TCP
+

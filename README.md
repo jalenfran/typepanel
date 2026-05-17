@@ -42,8 +42,29 @@ Live shared typing — like a pastebin where everyone sees the same text in real
    - Start command: `npm run server`
 4. Once deployed, copy the public URL (e.g. `wss://my-typepanel-ws.up.railway.app`) and plug it into `NEXT_PUBLIC_WS_URL` on Vercel.
 
+## Deploy on your k3s cluster
+
+There is a `kubernetes/` folder with example manifests:
+
+- `kubernetes/typepanel-namespace.yaml`
+- `kubernetes/typepanel-deployment.yaml`
+- `kubernetes/typepanel-service.yaml`
+
+High-level flow:
+
+1. Build & push a Docker image for this repo (for example to GHCR).
+2. Update `image:` in `kubernetes/typepanel-deployment.yaml`.
+3. On your cluster node:
+   ```bash
+   cd /home/server/projects/TypePanel/kubernetes
+   sudo kubectl apply -f typepanel-namespace.yaml
+   sudo kubectl apply -f typepanel-deployment.yaml
+   sudo kubectl apply -f typepanel-service.yaml
+   ```
+4. Access via NodePort `http://<node-ip>:30110` or add an nginx vhost that proxies a domain to that port.
+
 ## How it works
 
 - Each room is a URL: `/room/[id]`. Everyone in the same URL shares one live document.
-- Typing is debounced and sent to a small API route that broadcasts via Pusher.
-- No database: when everyone leaves, the content is gone.
+- Typing is debounced and sent over a WebSocket connection; the server applies the patch and broadcasts it to every other client in the room.
+- No database. Rooms linger for 3 minutes after the last client disconnects (so a refresh doesn't lose work), then are dropped from memory.
